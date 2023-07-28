@@ -4,8 +4,8 @@
 # The API is registered in the app object in the app/__init__.py file.
 
 from app.models import Project, TestSuite, TestCase, TestRun, TestResult
-from app import db # This is the db object from app/__init__.py
-from app import app # This is the app object from app/__init__.py
+from app import db  # This is the db object from app/__init__.py
+from app import app  # This is the app object from app/__init__.py
 from flask_restx import Namespace, Resource, fields, reqparse, Api
 from flask import Blueprint
 
@@ -328,152 +328,6 @@ class TestCaseListResource(Resource):
         }
 
 
-@ns_testRun.route("/<int:project_id>/<int:suite_id>/<int:run_id>")
-@ns_testRun.param("project_id", "The project identifier")
-@ns_testRun.param("run_id", "The test run identifier")
-class TestRunResource(Resource):
-    @ns_testRun.doc("get_test_run")
-    @ns_testRun.marshal_with(testRun_model)
-    def get(self, project_id, run_id):
-        test_run = TestRun.query.get_or_404(run_id)
-        if test_run.project_id != project_id:
-            return {"error": "Test run not found in the specified project"}, 404
-        return {
-            "id": test_run.id,
-            "name": test_run.name,
-            "description": test_run.description,
-        }
-
-    @ns_testRun.doc("update_test_run")
-    @ns_testRun.expect(testRun_model)
-    @ns_testRun.marshal_with(testRun_model)
-    def put(self, project_id, run_id):
-        args = testRun_parser.parse_args()
-        test_run = TestRun.query.get_or_404(run_id)
-        if test_run.project_id != project_id:
-            return {"error": "Test run not found in the specified project"}, 404
-        test_run.name = args["name"]
-        test_run.description = args["description"]
-        db.session.commit()
-        return {
-            "id": test_run.id,
-            "name": test_run.name,
-            "description": test_run.description,
-        }
-
-    @ns_testRun.doc("delete_test_run")
-    @ns_testRun.response(204, "Test run deleted")
-    def delete(self, project_id, run_id):
-        test_run = TestRun.query.get_or_404(run_id)
-        if test_run.project_id != project_id:
-            return {"error": "Test run not found in the specified project"}, 404
-        db.session.delete(test_run)
-        db.session.commit()
-        return {"result": "Test run deleted"}
-
-
-@ns_testRun.route("/<int:project_id>")
-@ns_testRun.param("project_id", "The project identifier")
-class TestRunListResource(Resource):
-    @ns_testRun.doc("list_test_runs")
-    @ns_testRun.marshal_list_with(testRun_model)
-    def get(self, project_id):
-        test_runs = TestRun.query.filter_by(project_id=project_id).all()
-        return [
-            {
-                "id": test_run.id,
-                "name": test_run.name,
-                "description": test_run.description,
-            }
-            for test_run in test_runs
-        ]
-
-    @ns_testRun.doc("create_test_run")
-    @ns_testRun.expect(testRun_model)
-    @ns_testRun.marshal_with(testRun_model)
-    def post(self, project_id):
-        args = testRun_parser.parse_args()
-        test_run = TestRun(
-            name=args["name"], description=args["description"], project_id=project_id
-        )
-        db.session.add(test_run)
-        db.session.commit()
-        return {
-            "id": test_run.id,
-            "name": test_run.name,
-            "description": test_run.description,
-        }
-
-
-@ns_testResult.route("/<int:result_id>")
-@ns_testResult.param("project_id", "The project identifier")
-@ns_testResult.param("run_id", "The test run identifier")
-@ns_testResult.param("result_id", "The test result identifier")
-class TestResultResource(Resource):
-    @ns_testResult.doc("get_test_result")
-    @ns_testResult.marshal_with(testResult_model)
-    def get(self, project_id, run_id, result_id):
-        test_result = TestResult.query.get_or_404(result_id)
-        if test_result.test_run_id != run_id:
-            return {"error": "Test result not found in the specified test run"}, 404
-        return {
-            "id": test_result.id,
-            "status": test_result.status,
-            "output": test_result.output,
-        }
-
-    @ns_testResult.doc("update_test_result")
-    @ns_testResult.expect(testResult_model)
-    @ns_testResult.marshal_with(testResult_model)
-    def put(self, project_id, run_id, result_id):
-        args = testResult_parser.parse_args()
-        test_result = TestResult.query.get_or_404(result_id)
-        if test_result.test_run_id != run_id:
-            return {"error": "Test result not found in the specified test run"}, 404
-        test_result.status = args["status"]
-        test_result.output = args["output"]
-        db.session.commit()
-        return {
-            "id": test_result.id,
-            "status": test_result.status,
-            "output": test_result.output,
-        }
-
-
-@ns_testResult.route("/")
-@ns_testResult.param("project_id", "The project identifier")
-@ns_testResult.param("run_id", "The test run identifier")
-class TestResultListResource(Resource):
-    @ns_testResult.doc("list_test_results")
-    @ns_testResult.marshal_list_with(testResult_model)
-    def get(self, project_id, run_id):
-        test_results = TestResult.query.filter_by(test_run_id=run_id).all()
-        return [
-            {
-                "id": test_result.id,
-                "status": test_result.status,
-                "output": test_result.output,
-            }
-            for test_result in test_results
-        ]
-
-    @ns_testResult.doc("create_test_result")
-    @ns_testResult.expect(testResult_model)
-    @ns_testResult.marshal_with(testResult_model)
-    def post(self, project_id, run_id):
-        args = testResult_parser.parse_args()
-        test_result = TestResult(
-            status=args["status"], output=args["output"], test_run_id=run_id
-        )
-        db.session.add(test_result)
-        db.session.commit()
-        return {
-            "id": test_result.id,
-            "status": test_result.status,
-            "output": test_result.output,
-        }
-
-
 def initialize_routes(api):
     # Register the namespaces
     api.add_namespace(ns_testProject)
@@ -481,6 +335,7 @@ def initialize_routes(api):
     api.add_namespace(ns_testCase)
     api.add_namespace(ns_testRun)
     api.add_namespace(ns_testResult)
+
 
 # Register the routes
 initialize_routes(api)
